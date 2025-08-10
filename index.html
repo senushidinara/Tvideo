@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NeuroAge — YouTube-ready Mentor Intro (Enhanced)</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#00d6ff; --accent2:#0088cc; --bg1:#041e28; --bg2:#073544; --muted:#bdeeffaa;
+}
+html,body{height:100%;margin:0;font-family:'Poppins',sans-serif;background:linear-gradient(160deg,var(--bg1),var(--bg2));color:#e8fbff}
+.container{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;box-sizing:border-box}
+.panel{width:100%;max-width:1200px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:20px;border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);display:grid;grid-template-columns:520px 1fr;gap:20px;align-items:start}
+.left{display:flex;flex-direction:column;gap:12px;align-items:center}
+.canvas-wrap{width:480px;height:360px;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.04);background:#03151a;display:flex;align-items:center;justify-content:center;position:relative}
+canvas#avatarCanvas{width:100%;height:100%;display:block}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.btn{background:var(--accent);border:none;color:#002b35;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.06);color:var(--accent)}
+.small{padding:6px 8px;font-size:.9rem}
+.status{color:var(--muted);font-size:.92rem;margin-left:8px}
+.right{padding:6px 6px 6px 12px}
+h1{margin:0;color:var(--accent);font-size:1.8rem}
+.lead{color:var(--muted);margin-top:6px;margin-bottom:12px}
+.form-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.label{min-width:85px;color:#cfeeff;font-weight:600}
+.select,input{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);color:#e6fbff;padding:8px;border-radius:8px}
+.subtitles-box{margin-top:14px;background:rgba(0,0,0,0.36);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);min-height:80px;overflow:auto}
+.small-muted{font-size:.87rem;color:var(--muted)}
+.footer-row{display:flex;gap:8px;align-items:center;margin-top:14px}
+kbd{background:rgba(255,255,255,0.04);padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.03);font-weight:700}
+.note{font-size:.88rem;color:#cfeeff;margin-top:8px}
+@media(max-width:980px){.panel{grid-template-columns:1fr;}.canvas-wrap{width:100%;height:320px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="panel" role="main" aria-label="NeuroAge YouTube-ready Mentor Intro">
+    <!-- LEFT: Canvas + Controls -->
+    <div class="left">
+      <div class="canvas-wrap" title="Avatar canvas (records clean video)">
+        <canvas id="avatarCanvas" width="1280" height="720" aria-label="NeuroAge mentor avatar"></canvas>
+      </div>
+
+      <div class="controls" role="toolbar">
+        <button class="btn" id="playBtn">Play ▶</button>
+        <button class="btn ghost" id="replayBtn">Replay 🔁</button>
+        <button class="btn ghost" id="recordBtn">Record (Canvas + Audio)</button>
+        <button class="btn ghost" id="srtBtn">Export SRT</button>
+        <div class="status" id="status">Ready</div>
+      </div>
+
+      <div class="note small-muted">Tip: For best result, when prompted to share choose the browser <strong>tab</strong> and check <em>Share audio</em>, so the TTS audio is captured in the recording.</div>
+    </div>
+
+    <!-- RIGHT: Settings, Subtitles, Voice Controls -->
+    <div class="right" aria-live="polite">
+      <h1>NeuroAge — Mentor Intro</h1>
+      <div class="lead">High-quality avatar, phoneme-driven lip-sync, burned-in subtitles, and recorder optimized for YouTube uploads.</div>
+
+      <div class="form-row">
+        <div class="label">Voice</div>
+        <select id="voiceSelect" class="select"></select>
+      </div>
+
+      <div class="form-row">
+        <div class="label">Rate</div>
+        <input id="rate" type="range" min="0.6" max="1.4" step="0.05" value="1">
+        <div id="rateVal" class="small-muted">1.0</div>
+      </div>
+
+      <div class="form-row">
+        <div class="label">Pitch</div>
+        <input id="pitch" type="range" min="0.6" max="1.6" step="0.05" value="1">
+        <div id="pitchVal" class="small-muted">1.0</div>
+      </div>
+
+      <div class="form-row">
+        <div class="label">Quality</div>
+        <select id="resSelect" class="select">
+          <option value="720">1280×720 (YouTube standard)</option>
+          <option value="1080">1920×1080 (High, may be heavy)</option>
+        </select>
+      </div>
+
+      <div class="subtitles-box" id="subBox" aria-label="Subtitles preview">
+        <div id="subsPreview" class="small-muted">Press Play to load animated subtitles.</div>
+      </div>
+
+      <div class="footer-row">
+        <div class="small-muted">Keyboard: <kbd>Space</kbd> Play/Stop • <kbd>R</kbd> Record • <kbd>M</kbd> Mute</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* -------------------------
+   YouTube-ready advanced avatar
+   - Canvas rendering for crisp video
+   - Phoneme-aware mouth sync (small built-in dictionary + fallback)
+   - Canvas capture + mix-in of tab audio for webm recording
+   - SRT export
+   ------------------------- */
+
+const SCRIPT = `Hello, and welcome to NeuroAge. I developed this app with older adults in mind—someone like me who values clarity, privacy, and gentle guidance. NeuroAge offers personalized memory exercises tuned to your natural rhythm. It also delivers sleep routines rooted in neuroscience to strengthen restorative rest. Best of all, it works entirely offline, keeping your data safe and private. Empower your mind and your nights—for lifelong cognitive health.`;
+
+const canvas = document.getElementById('avatarCanvas');
+const ctx = canvas.getContext('2d', { alpha: false });
+const playBtn = document.getElementById('playBtn');
+const replayBtn = document.getElementById('replayBtn');
+const recordBtn = document.getElementById('recordBtn');
+const srtBtn = document.getElementById('srtBtn');
+const statusEl = document.getElementById('status');
+const voiceSelect = document.getElementById('voiceSelect');
+const rateInput = document.getElementById('rate');
+const pitchInput = document.getElementById('pitch');
+const rateVal = document.getElementById('rateVal');
+const pitchVal = document.getElementById('pitchVal');
+const resSelect = document.getElementById('resSelect');
+const subsPreview = document.getElementById('subsPreview');
+
+let synth = window.speechSynthesis;
+let voices = [];
+let utterance = null;
+let playing = false;
+let raf = null;
+let tstart = 0;
+let phonemeEvents = []; // [{time, phoneme, wordIndex, lineIndex}]
+let subtitleLines = [];
+let currentPhonemeIndex = 0;
+let recorder = null;
+let mediaChunks = [];
+
+/* ---------- Voice & settings ---------- */
+function loadVoices(){
+  voices = synth.getVoices().sort((a,b)=> a.name.localeCompare(b.name));
+  voiceSelect.innerHTML = '';
+  voices.forEach((v, i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})${v.default?' • default':''}`;
+    voiceSelect.appendChild(opt);
+  });
+}
+if(speechSynthesis.onvoiceschanged !== undefined){
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+loadVoices();
+
+rateInput.addEventListener('input', ()=> rateVal.textContent = rateInput.value);
+pitchInput.addEventListener('input', ()=> pitchVal.textContent = pitchInput.value);
+
+/* ---------- Prepare subtitles and small phoneme dictionary ---------- */
+/*
+  Lightweight phoneme map for common words in the SCRIPT.
+  Not exhaustive, but improves realism. Each phoneme maps to mouth shapes:
+  'H' hush (closed/soft consonant), 'S' small (short vowel), 'B' big (long vowel),
+  'F' fricative shape (teeth show) — we map to a handful of mouth shapes.
+*/
+const PHONEME_MAP = {
+  // small sample: map lowercase word -> array of phoneme tokens
+  "hello": ['H','B'],
+  "and": ['H','S'],
+  "welcome": ['B','S'],
+  "to": ['S'],
+  "neuroage": ['N','B','S'],
+  "i": ['B'],
+  "developed": ['S','H','S'],
+  "this": ['H','S'],
+  "app": ['H','S'],
+  "with": ['H','S'],
+  "older": ['S','B'],
+  "adults": ['S','H','S'],
+  "in": ['H'],
+  "mind": ['H','B'],
+  "someone": ['S','B'],
+  "like": ['S','B'],
+  "me": ['B'],
+  "who": ['B'],
+  "values": ['S','H','S'],
+  "clarity": ['B','S','H'],
+  "privacy": ['B','S','H'],
+  "gentle": ['S','H'],
+  "guidance": ['S','H','B'],
+  "offers": ['S','H','S'],
+  "personalized": ['B','S','H','S'],
+  "memory": ['B','S','H'],
+  "exercises": ['S','H','S'],
+  "tuned": ['S','B'],
+  "natural": ['S','B','S'],
+  "rhythm": ['H','S'],
+  "also": ['S','B'],
+  "delivers": ['S','H','S'],
+  "sleep": ['B'],
+  "routines": ['S','H','S'],
+  "rooted": ['S','H'],
+  "in": ['H'],
+  "neuroscience": ['B','S','H','S'],
+  "strengthen": ['S','H','S'],
+  "rest": ['S'],
+  "best": ['S'],
+  "of": ['H'],
+  "all": ['B'],
+  "works": ['S','H'],
+  "entirely": ['B','S','H'],
+  "offline": ['S','B','S'],
+  "keeping": ['S','H'],
+  "your": ['B'],
+  "data": ['S','H'],
+  "safe": ['S'],
+  "and": ['H','S'],
+  "private": ['B','S','H'],
+  "empower": ['S','B','S'],
+  "mind": ['H','B'],
+  "nights": ['S'],
+  "for": ['H'],
+  "lifelong": ['B','S'],
+  "cognitive": ['B','S','H'],
+  "health": ['S']
+};
+
+// fallback mapping from phoneme token to mouth shape
+const PHONEME_TO_SHAPE = {
+  'H':'hush', // closed
+  'S':'small', // short/open
+  'B':'big', // long vowel
+  'F':'small'
+};
+
+function fallbackPhonemes(word){
+  // estimate vowel clusters -> map to sequence
+  const w = word.toLowerCase().replace(/[^a-z']/g,'');
+  const vowelClusters = (w.match(/[aeiouy]+/g) || []).length || 0;
+  if(vowelClusters === 0) return ['H'];
+  if(vowelClusters === 1) return ['S'];
+  return ['S','B'];
+}
+
+/* Split text into lines and words for subtitles */
+function prepareSubtitles(){
+  const lines = SCRIPT.match(/[^\.!\?]+[\.!\?]*/g) || [SCRIPT];
+  subtitleLines = lines.map(l=>{
+    const words = l.trim().split(/\s+/).map(w=>w.trim()).filter(Boolean);
+    return {text: l.trim(), words};
+  });
+  // Build phoneme timeline estimate:
+  phonemeEvents = [];
+  let t = 0;
+  subtitleLines.forEach((line, li)=>{
+    line.words.forEach((w, wi)=>{
+      const key = w.toLowerCase().replace(/[^\w']/g,'');
+      const pseq = PHONEME_MAP[key] || fallbackPhonemes(key);
+      // estimate duration per phoneme (ms) based on letters & rate (we apply actual rate on playback)
+      const baseWordMs = Math.max(150, Math.min(700, Math.round((w.length / 6) * 450)));
+      const perPhoneme = Math.max(60, Math.round(baseWordMs / pseq.length));
+      pseq.forEach((p,i)=>{
+        phonemeEvents.push({time: t, phoneme:p, wordIndex:wi, lineIndex:li, textWord:w});
+        t += perPhoneme;
+      });
+      // tiny pause between words
+      t += 60;
+    });
+    // pause between lines
+    t += 200;
+  });
+  // store estimated total duration in ms for UI
+  return t;
+}
+
+/* ---------- Canvas avatar rendering ---------- */
+const W = canvas.width, H = canvas.height;
+let pupilX = 0, pupilY = 0;
+let mouthShape = 'hush';
+let handWave = 0;
+let glow = 0;
+
+function drawAvatar(ts){
+  // clear
+  ctx.fillStyle = '#03151a';
+  ctx.fillRect(0,0,W,H);
+
+  // vignette & glow
+  ctx.save();
+  const g = ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,'rgba(0,40,50,0.25)');
+  g.addColorStop(1,'rgba(0,0,0,0.3)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,W,H);
+  ctx.restore();
+
+  // soft backdrop circle
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.beginPath();
+  ctx.fillStyle = '#007a8a';
+  ctx.ellipse(W*0.5, H*0.48, W*0.42, H*0.36, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // avatar body (rounded)
+  const cx = W/2, cy = H*0.45;
+  const r = Math.min(W,H)*0.22;
+  // shadow
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy+ r*0.9, r*1.05, r*0.35, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  // outer circle
+  ctx.beginPath();
+  ctx.fillStyle = '#213844';
+  roundCircle(ctx,cx,cy,r);
+  ctx.fill();
+
+  // inner face circle
+  ctx.beginPath();
+  ctx.fillStyle = '#2e4b54';
+  roundCircle(ctx, cx, cy, r*0.86);
+  ctx.fill();
+
+  // eyes
+  const eyeY = cy - r*0.2;
+  const eyeXOffset = r*0.42;
+  drawEye(cx - eyeXOffset, eyeY, pupilX, pupilY);
+  drawEye(cx + eyeXOffset, eyeY, pupilX, pupilY);
+
+  // cheeks
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(255,255,255,0.02)';
+  ctx.roundRect(cx - 60, cy + 10, 120, 28, 14);
+  ctx.fill();
+
+  // mouth based on shape
+  drawMouth(cx, cy + r*0.35, mouthShape);
+
+  // hand - small rectangle wave
+  const handX = cx + r*0.72;
+  const handY = cy + r*0.52 + Math.sin(handWave)*6;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.4)';
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = '#0f3a3f';
+  ctx.roundRect(handX - 48, handY - 22, 96, 44, 12);
+  ctx.fill();
+  ctx.restore();
+
+  // subtitles burned into canvas (bottom)
+  drawSubtitlesOnCanvas();
+
+  // glow pulse
+  glow = 0.5 + 0.5*Math.sin(ts*0.001);
+}
+
+function roundCircle(c,x,y,r){
+  c.arc(x,y,r,0,Math.PI*2);
+}
+
+CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r){
+  if(typeof r === 'number') r = {tl:r,tr:r,br:r,bl:r};
+  this.beginPath();
+  this.moveTo(x + r.tl, y);
+  this.lineTo(x + w - r.tr, y);
+  this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+  this.lineTo(x + w, y + h - r.br);
+  this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+  this.lineTo(x + r.bl, y + h);
+  this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+  this.lineTo(x, y + r.tl);
+  this.quadraticCurveTo(x, y, x + r.tl, y);
+  this.closePath();
+}
+
+function drawEye(ex, ey, px, py){
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = '#ffffff';
+  ctx.roundRect(ex - 24, ey - 14, 48, 28, 20);
+  ctx.fill();
+  // pupil
+  ctx.beginPath();
+  ctx.fillStyle = '#032b2f';
+  ctx.arc(ex - 6 + px*1.4, ey - 2 + py*0.8, 10, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawMouth(mx, my, shape){
+  ctx.save();
+  if(shape === 'hush'){
+    ctx.fillStyle = 'rgba(220,140,120,0.28)';
+    ctx.roundRect(mx - 44, my - 6, 88, 12, 10);
+    ctx.fill();
+  } else if(shape === 'small'){
+    ctx.fillStyle = 'linear-gradient(0deg,#dd8b70,#b25047)';
+    ctx.beginPath();
+    ctx.ellipse(mx, my, 36, 14, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#dd8b70';
+    ctx.fill();
+  } else { // big
+    ctx.beginPath();
+    ctx.ellipse(mx, my, 56, 30, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#dd8b70';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.fillStyle = '#7a2b20';
+    ctx.ellipse(mx, my + 8, 36, 14, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* Subtitles rendering on canvas */
+let curLineIndex = 0;
+let curWordIndex = 0;
+function drawSubtitlesOnCanvas(){
+  ctx.save();
+  const margin = 28;
+  const boxH = 100;
+  const x = margin, y = H - boxH - margin;
+  // background
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.roundRect(x, y, W - margin*2, boxH, 12);
+  ctx.fill();
+  ctx.fillStyle = '#e6fbff';
+  ctx.font = '28px Poppins';
+  ctx.textBaseline = 'top';
+  // draw current line with word highlight
+  const line = subtitleLines[curLineIndex] ? subtitleLines[curLineIndex].text : '';
+  const words = subtitleLines[curLineIndex] ? subtitleLines[curLineIndex].words : [];
+  if(!line) {
+    ctx.restore(); return;
+  }
+  // simple layout: draw each word, highlight current word
+  let px = x + 24, py = y + 18;
+  words.forEach((w, i)=>{
+    const wWidth = ctx.measureText(w + ' ').width;
+    ctx.fillStyle = (i === curWordIndex) ? '#00e6ff' : 'rgba(230,251,255,0.86)';
+    ctx.fillText(w + (i<words.length-1?' ':'') , px, py);
+    px += wWidth;
+  });
+  ctx.restore();
+}
+
+/* ---------- Lip-sync timing and playback ---------- */
+
+function getSelectedVoice(){
+  const idx = parseInt(voiceSelect.value || 0);
+  return voices[idx] || null;
+}
+
+/* Build phoneme timeline (ms estimate) and subtitle lines */
+const estimatedTotalMs = prepareSubtitles(); // returns ms total; also sets phonemeEvents
+
+/* play using SpeechSynthesis; drive mouth by phonemeEvents and onboundary fallback */
+function playSpeaking({mute=false, rate=1.0, pitch=1.0} = {}){
+  if(playing){ return; }
+  // cancel existing speech
+  if(speechSynthesis.speaking) speechSynthesis.cancel();
+
+  utterance = new SpeechSynthesisUtterance(SCRIPT);
+  const v = getSelectedVoice();
+  if(v) utterance.voice = v;
+  utterance.rate = rate;
+  utterance.pitch = pitch;
+  utterance.volume = mute ? 0 : 1;
+
+  // reset indices & start time
+  currentPhonemeIndex = 0;
+  curLineIndex = 0;
+  curWordIndex = 0;
+  tstart = performance.now();
+  playing = true;
+  statusEl.textContent = 'Playing';
+  // show subtitles preview text block
+  subsPreview.innerHTML = subtitleLines.map(s=>`<div style="margin-bottom:6px">${s.text}</div>`).join('');
+
+  // If browser supports onboundary -> use it. Otherwise rely on our phonemeEvents time mapping (scaled by rate).
+  let boundaryFired = false;
+
+  utterance.onboundary = (ev) => {
+    boundaryFired = true;
+    // ev.charIndex gives approximate char position; we map to words/lines simply by advancing
+    // For robustness we advance phoneme index by 1
+    advancePhonemeBy(1);
+  };
+
+  utterance.onstart = () => {
+    // start RAF to render canvas
+    if(!raf) raf = requestAnimationFrame(loop);
+    // if no boundary events within 220ms fallback to phoneme schedule
+    setTimeout(()=> {
+      if(!boundaryFired && playing) schedulePhonemePlayback(rate);
+    }, 220);
+  };
+
+  utterance.onend = () => {
+    playing = false;
+    statusEl.textContent = 'Finished';
+    mouthShape = 'hush';
+    curWordIndex = 0;
+    curLineIndex = subtitleLines.length-1;
+    drawAvatar(performance.now());
+  };
+
+  utterance.onerror = (e) => {
+    console.error('TTS error', e);
+    statusEl.textContent = 'TTS error';
+    playing = false;
+  };
+
+  speechSynthesis.speak(utterance);
+}
+
+/* The scheduled phoneme playback (fallback/resilient) */
+let phonemeTimeouts = [];
+function schedulePhonemePlayback(rate=1.0){
+  // clear
+  phonemeTimeouts.forEach(t=>clearTimeout(t));
+  phonemeTimeouts = [];
+  const start = performance.now();
+  const scale = 1 / rate;
+  phonemeEvents.forEach((evt, idx) => {
+    const when = Math.max(0, Math.round(evt.time * scale));
+    const to = setTimeout(()=> {
+      currentPhonemeIndex = idx;
+      mouthShape = PHONEME_TO_SHAPE[evt.phoneme] || 'small';
+      curLineIndex = evt.lineIndex;
+      curWordIndex = evt.wordIndex;
+      // small emphasis gestures
+      if(Math.random() < 0.06) handWave += 0.6;
+    }, when);
+    phonemeTimeouts.push(to);
+  });
+}
+
+/* advance phoneme by n steps (used by onboundary and manual updates) */
+function advancePhonemeBy(n){
+  currentPhonemeIndex = Math.min(phonemeEvents.length-1, currentPhonemeIndex + n);
+  const evt = phonemeEvents[currentPhonemeIndex];
+  if(evt){
+    mouthShape = PHONEME_TO_SHAPE[evt.phoneme] || 'small';
+    curLineIndex = evt.lineIndex;
+    curWordIndex = evt.wordIndex;
+  }
+}
+
+/* main loop */
+function loop(ts){
+  // micro updates
+  handWave *= 0.92;
+  handWave += (Math.random()*0.06 - 0.03);
+  // small pupil jitter
+  pupilX = (Math.sin(ts*0.0023) + Math.cos(ts*0.0017))*2;
+  pupilY = Math.sin(ts*0.0012)*1.5;
+  drawAvatar(ts);
+  raf = requestAnimationFrame(loop);
+}
+
+/* ---------- Recording: capture canvas + mix in tab audio (if shared) ---------- */
+async function startRecording(){
+  if(recorder) return;
+  statusEl.textContent = 'Preparing recording...';
+
+  // canvas stream at desired resolution
+  const targetRes = parseInt(resSelect.value || '720',10);
+  // Choose canvas capture stream at 30fps
+  const canvasStream = canvas.captureStream(30);
+
+  // Try to get tab audio by prompting to share screen (tab) with audio — user must choose tab and enable "Share audio".
+  // We use getDisplayMedia to obtain an audio track only, then mix it with the canvas stream.
+  let audioStream = null;
+  try{
+    // Ask for tab with audio. We request video so the browser shows the share dialog; we won't use the returned video track.
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({video: true, audio: true});
+    // extract audio tracks, if any
+    const audioTracks = displayStream.getAudioTracks();
+    if(audioTracks.length){
+      audioStream = new MediaStream(audioTracks);
+    } else {
+      // If no audio track, fallback to microphone (ask permission)
+      try{
+        audioStream = await navigator.mediaDevices.getUserMedia({audio:true});
+      }catch(err){
+        audioStream = null;
+        console.warn('No audio captured from tab and microphone denied.');
+      }
+    }
+
+    // If displayStream has a video track, stop it — we only needed audio. (Do not stop audio tracks!)
+    displayStream.getVideoTracks().forEach(t => t.stop());
+  }catch(err){
+    console.warn('Display capture denied or canceled', err);
+    // fall back to microphone only (best effort)
+    try{
+      audioStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch(e){
+      audioStream = null;
+      console.warn('Microphone denied', e);
+    }
+  }
+
+  // compose final stream
+  const finalStream = new MediaStream();
+  // add canvas video tracks
+  canvasStream.getVideoTracks().forEach(t=> finalStream.addTrack(t));
+  // add audio tracks (tab or mic)
+  if(audioStream){
+    audioStream.getAudioTracks().forEach(t=> finalStream.addTrack(t));
+  }
+
+  // Start recorder (webm vp9/opus or fallback)
+  const options = {mimeType: 'video/webm;codecs=vp9,opus'};
+  try{
+    recorder = new MediaRecorder(finalStream, options);
+  }catch(e){
+    try{ recorder = new MediaRecorder(finalStream); }catch(err){ alert('Recording not supported in this browser'); return; }
+  }
+
+  mediaChunks = [];
+  recorder.ondataavailable = e => { if(e.data && e.data.size) mediaChunks.push(e.data); };
+  recorder.onstop = () => {
+    const blob = new Blob(mediaChunks, {type: 'video/webm'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `neuroage_intro_${Date.now()}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    statusEl.textContent = 'Saved recording (.webm)';
+    recorder = null;
+  };
+
+  recorder.start(250); // chunk interval
+  recordBtn.textContent = 'Stop';
+  statusEl.textContent = 'Recording... (check "Share audio" on tab for TTS capture)';
+}
+
+function stopRecording(){
+  if(recorder) recorder.stop();
+  recordBtn.textContent = 'Record (Canvas + Audio)';
+}
+
+/* ---------- SRT Export ---------- */
+function exportSRT(){
+  // Build SRT entries with estimated timings using phonemeEvents timeline (convert ms)
+  const entries = [];
+  // We'll map each subtitle line start/end from phonemeEvents by finding first/last event for that line
+  subtitleLines.forEach((line, li) => {
+    const lineEvents = phonemeEvents.filter(e=>e.lineIndex === li);
+    if(lineEvents.length === 0) return;
+    const tStart = lineEvents[0].time;
+    const tEnd = lineEvents[lineEvents.length-1].time + 200;
+    entries.push({index: entries.length+1, start: tStart, end: tEnd, text: line.text});
+  });
+
+  // helper to format time
+  function fmt(ms){
+    const s = Math.max(0, Math.floor(ms/1000));
+    const hh = Math.floor(s/3600);
+    const mm = Math.floor((s%3600)/60);
+    const ss = s%60;
+    const msRem = Math.floor(ms%1000);
+    return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')},${String(msRem).padStart(3,'0')}`;
+  }
+
+  const srtText = entries.map(e => `${e.index}\n${fmt(e.start)} --> ${fmt(e.end)}\n${e.text}\n`).join('\n');
+  const blob = new Blob([srtText], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'neuroage_subtitles.srt';
+  a.click();
+  URL.revokeObjectURL(url);
+  statusEl.textContent = 'SRT exported';
+}
+
+/* ---------- UI wiring ---------- */
+playBtn.addEventListener('click', ()=> {
+  const rate = parseFloat(rateInput.value);
+  const pitch = parseFloat(pitchInput.value);
+  playSpeaking({mute: false, rate, pitch});
+});
+replayBtn.addEventListener('click', ()=> {
+  const rate = parseFloat(rateInput.value);
+  const pitch = parseFloat(pitchInput.value);
+  // restart
+  if(speechSynthesis.speaking) speechSynthesis.cancel();
+  playSpeaking({mute: false, rate, pitch});
+});
+recordBtn.addEventListener('click', async ()=>{
+  if(recorder){ stopRecording(); } else { await startRecording(); }
+});
+srtBtn.addEventListener('click', exportSRT);
+
+/* keyboard shortcuts */
+document.addEventListener('keydown', e=>{
+  if(e.code === 'Space'){ e.preventDefault(); if(!playing) playBtn.click(); else { speechSynthesis.cancel(); playing = false; statusEl.textContent = 'Stopped'; } }
+  if(e.key.toLowerCase() === 'r'){ recordBtn.click(); }
+  if(e.key.toLowerCase() === 'm'){ /* toggle mute by re-triggering with mute true */ const mute = false; speechSynthesis.cancel(); playSpeaking({mute}); }
+});
+
+/* init loop */
+if(!raf) raf = requestAnimationFrame(loop);
+
+/* helpful status when voices available */
+setTimeout(()=> {
+  if(voices.length === 0) loadVoices();
+  if(voices.length){
+    statusEl.textContent = `Voices loaded: ${voices.length}. Choose voice and press Play.`;
+  } else {
+    statusEl.textContent = 'No voices found yet — if blank, reload or allow sound.';
+  }
+}, 800);
+
+/* Expose one-click export SRT and record stop on unload to avoid dangling streams */
+window.addEventListener('beforeunload', ()=> { if(recorder) recorder.stop(); });
+
+</script>
+</body>
+</html>
